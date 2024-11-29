@@ -1,12 +1,20 @@
 package com.wire
 
-import com.wire.com.wire.model.ApiVersion
+import com.wire.com.wire.model.QualifiedId
+import com.wire.com.wire.model.backend.ClientAddRequest
+import com.wire.com.wire.model.backend.ClientAddResponse
+import com.wire.com.wire.model.backend.LoginRequest
+import com.wire.com.wire.model.backend.LoginResponse
+import com.wire.com.wire.model.legalhold.ConfirmRequest
+import com.wire.com.wire.model.legalhold.InitRequest
+import com.wire.com.wire.model.legalhold.InitResponse
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
+import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.cli.ArgParser
 import kotlinx.cli.ArgType
@@ -63,17 +71,59 @@ suspend fun main(args: Array<String>) {
             })
         }
     }
-    val response: HttpResponse = client.get("http://localhost:8080/api-version")
-    logger.info { response.status }
-    val apiVersion : ApiVersion = response.body()
-    logger.info { apiVersion }
+    val qualifiedUser = QualifiedId(userId, userDomain)
 
     // Call /initiate with a real qualified_user_id and team_id
-    // Use the response to call POST /client, adding the prekeys and default data
-    // Get the clientId from the response
-    // Call /login, get the cookie in the response header "set-cookie"
+    val initResponse: HttpResponse = client.post("http://localhost:8080/v1/initiate") {
+        contentType(ContentType.Application.Json)
+        headers {
+            append(HttpHeaders.Accept, ContentType.Application.Json)
+            append(HttpHeaders.Authorization, "secr3t")
+        }
+        setBody(InitRequest(qualifiedUser, teamId))
+    }
+    val initResponseDto : InitResponse = initResponse.body()
+    logger.info { initResponseDto }
 
-    // Call /initiate with a real qualified_user_id,  team_id, refresb_token(the cookie?) and clientId
-    // Check the response is HTTP 200
+    // Call POST /login, get access_token from response body and get the cookie in the response header "set-cookie"
+    val loginResponse: HttpResponse = client.post("$env/login") {
+        contentType(ContentType.Application.Json)
+        headers {
+            append(HttpHeaders.Accept, ContentType.Application.Json)
+        }
+        setBody(LoginRequest(email, password))
+    }
+    val accessToken : String = loginResponse.body<LoginResponse>().accessToken
+    val refreshToken = loginResponse.setCookie().first().value
+    logger.info { accessToken }
+
+    // Use the response to call POST /client, adding the prekeys and default data
+    val clientAddResponse: HttpResponse = client.post("$env/clients") {
+        contentType(ContentType.Application.Json)
+        headers {
+            append(HttpHeaders.Accept, ContentType.Application.Json)
+            append(HttpHeaders.Authorization, "Bearer $accessToken")
+        }
+        setBody(ClientAddRequest(lastkey = initResponseDto.lastPrekey, prekeys = initResponseDto.prekeys))
+    }
+    val clientId : String = clientAddResponse.body<ClientAddResponse>().id
+    logger.info { clientId }
+
+    // Call /confirm with a real qualified_user_id, team_id, refresb_token(the cookie?) and clientId, check 200
+    val confirmResponse: HttpResponse = client.post("http://localhost:8080/v1/confirm") {
+        contentType(ContentType.Application.Json)
+        headers {
+            append(HttpHeaders.Accept, ContentType.Application.Json)
+        }
+        setBody(
+            ConfirmRequest(
+                userId = qualifiedUser,
+                teamId = teamId,
+                refreshToken = refreshToken,
+                clientId = clientId
+            )
+        )
+    }
+    logger.info { confirmResponse.status }
     client.close()
 }

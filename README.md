@@ -14,6 +14,6 @@ On the backend, this will not display as a LegalHold device, but as a regular on
 - Ktor http client
 
 ### Run
-`./gradlew run --args="--email email@wire.com --password pwd --teamId 123 --userId 456"`
+`./gradlew run --args="--email email@wire.com --password pwd --teamId 123 --userId 456"` (and other optional params)
 
-use `./gradlew run --args="--help` to get a description of the parameters
+Use `./gradlew run --args="--help` to get a description of the parameters
