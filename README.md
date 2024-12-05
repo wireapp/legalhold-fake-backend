@@ -5,7 +5,7 @@ This tool will manage the calls /initiate and /confirm and then upload relevant 
 
 It functions as a proxy, bypassing some limitations of the backend flow to add LegalHold on a user.
 
-As LegalHold it concerned, it will look like a real backend.
+As LegalHold it concerned, it will look like a real backend adding a new device
 
 On the backend, this will not display as a LegalHold device, but as a regular one.
 

@@ -5,7 +5,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ClientAddRequest(
-    val type: String = "permanent",
+    val type: String,
+    val password: String,
     val lastkey: PreKey,
     val prekeys: List<PreKey>,
 )
